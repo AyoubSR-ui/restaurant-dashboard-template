@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>☕ Live Orders Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f7f4ef; text-align: center; margin: 0; }
+    h1 { background: #2e2b29; color: #fff; padding: 20px 0; }
+    table { width: 95%; margin: 20px auto; border-collapse: collapse; background: #fff; border-radius: 6px; }
+    th, td { padding: 10px; border: 1px solid #ddd; text-align: center; }
+    th { background: #2e2b29; color: white; }
+    tr:nth-child(even) { background: #f3f3f3; }
+    button { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; }
+    .ready { background: #ffc107; color: #000; }
+    .served { background: #28a745; color: #fff; }
+  </style>
+</head>
+<body>
+  <h1>☕ Live Orders Dashboard</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Table</th>
+        <th>Item</th>
+        <th>Price (QAR)</th>
+        <th>Status</th>
+        <th>Time</th>
+        <th>notes</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="orders-body"></tbody>
+  </table>
+
+  <script>
+async function fetchOrders() {
+  try {
+    const res = await fetch("http://127.0.0.1:5000/get_orders");
+    const data = await res.json();
+    const tbody = document.getElementById("orders-body");
+    tbody.innerHTML = "";
+
+    data.forEach((order, i) => {
+      const row = document.createElement("tr");
+
+      row.innerHTML = `
+        <td>${order.table}</td>
+        <td>${order.item}</td>
+        <td>${order.price}</td>
+        <td>${order.status}</td>
+        <td>${order.time}</td>
+        <td>${order.notes || '-'}</td>
+        <td>
+          <button class="ready" onclick="updateStatus(${i}, 'Ready')">Ready</button>
+          <button class="served" onclick="updateStatus(${i}, 'Served')">Served</button>
+        </td>
+      `;
+
+      tbody.appendChild(row);
+    });
+  } catch (err) {
+    console.error("❌ Failed to fetch orders:", err);
+  }
+}
+
+// Auto-refresh every 3 seconds
+setInterval(fetchOrders, 3000);
+fetchOrders();
+</script>
+<script>
+async function updateStatus(index, newStatus) {
+  try {
+    const res = await fetch("http://127.0.0.1:5000/update_status", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        index: index,
+        status: newStatus,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.status === "success") {
+      console.log(`✅ Order ${index} updated to ${newStatus}`);
+      // Refresh orders instantly
+      fetchOrders();
+    } else {
+      console.error("❌ Failed to update status:", data.message);
+    }
+  } catch (err) {
+    console.error("⚠️ Error sending update:", err);
+  }
+}
+</script>
+
+</body>
+</html>
+
