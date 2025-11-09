@@ -3,16 +3,18 @@ from flask_cors import CORS
 from datetime import datetime
 import os
 
+# ---------------------------------
 # Initialize Flask and CORS
+# ---------------------------------
 app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
 
 # Temporary in-memory order storage
 orders = []
 
-# -------------------------------
+# ---------------------------------
 # UI ROUTES (SERVE HTML PAGES)
-# -------------------------------
+# ---------------------------------
 @app.route('/')
 def customer_page():
     """Serve the customer-facing ordering page (en.html)."""
@@ -23,10 +25,14 @@ def barista_dashboard():
     """Serve the barista dashboard page (dashboard.html)."""
     return send_from_directory('.', 'dashboard.html')
 
+# Serve any other static files (images, CSS, JS, etc.)
+@app.route('/<path:filename>')
+def serve_static(filename):
+    return send_from_directory('.', filename)
 
-# -------------------------------
+# ---------------------------------
 # API ROUTES
-# -------------------------------
+# ---------------------------------
 
 # --- Route: Submit new order ---
 @app.route('/submit_order', methods=['POST'])
@@ -94,9 +100,9 @@ def clear_orders():
     return jsonify({"status": "success", "message": "All orders cleared"}), 200
 
 
-# -------------------------------
+# ---------------------------------
 # MAIN ENTRY POINT
-# -------------------------------
+# ---------------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
