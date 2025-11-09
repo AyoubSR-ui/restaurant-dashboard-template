@@ -70,7 +70,7 @@ fetchOrders();
 <script>
 async function updateStatus(index, newStatus) {
   try {
-    const res = await fetch("https://restaurant-dashboard-template.onrender.com", {
+    const res = await fetch("https://restaurant-dashboard-template.onrender.com/dashboard", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
