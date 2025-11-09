@@ -1,16 +1,37 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from datetime import datetime
+import os
 
-app = Flask(__name__)
+# Initialize Flask and CORS
+app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
 
 # Temporary in-memory order storage
 orders = []
 
+# -------------------------------
+# UI ROUTES (SERVE HTML PAGES)
+# -------------------------------
+@app.route('/')
+def customer_page():
+    """Serve the customer-facing ordering page (en.html)."""
+    return send_from_directory('.', 'en.html')
+
+@app.route('/dashboard')
+def barista_dashboard():
+    """Serve the barista dashboard page (dashboard.html)."""
+    return send_from_directory('.', 'dashboard.html')
+
+
+# -------------------------------
+# API ROUTES
+# -------------------------------
+
 # --- Route: Submit new order ---
 @app.route('/submit_order', methods=['POST'])
 def submit_order():
+    """Receive a new order from the customer page."""
     try:
         data = request.get_json()
 
@@ -42,7 +63,7 @@ def get_orders():
 # --- Route: Update order status (Ready / Served) ---
 @app.route('/update_status', methods=['POST'])
 def update_status():
-    """Update an order's status."""
+    """Update the status of an existing order."""
     try:
         data = request.get_json()
         index = data.get('index')
@@ -62,20 +83,24 @@ def update_status():
         print("❌ Error updating order:", e)
         return jsonify({"status": "error", "message": str(e)}), 500
 
+
 # --- Route: Clear all orders (optional helper) ---
 @app.route('/clear_orders', methods=['POST'])
 def clear_orders():
-    """Reset order list (for testing)."""
+    """Reset the order list (for testing)."""
     global orders
     orders = []
     print("🧹 All orders cleared.")
     return jsonify({"status": "success", "message": "All orders cleared"}), 200
 
 
+# -------------------------------
+# MAIN ENTRY POINT
+# -------------------------------
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
