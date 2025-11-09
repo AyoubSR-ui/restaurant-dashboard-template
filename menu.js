@@ -145,7 +145,7 @@ document.addEventListener("click", async function (e) {
     console.log("📦 Sending order data:", orderData);
 
     try {
-      const response = await fetch("http://127.0.0.1:5000/submit_order", {
+      const response = await fetch("https://restaurant-dashboard-template.onrender.com/submit_order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(orderData)
