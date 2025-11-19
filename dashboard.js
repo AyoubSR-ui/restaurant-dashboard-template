@@ -6,11 +6,11 @@ async function loadOrders() {
   res.data.forEach((order, index) => {
     const row = document.createElement("tr");
 
-    //  Items cell: "qty × name"
+    // 👇 Items cell: show "qty × name"
     let itemsText = "";
     if (Array.isArray(order.items) && order.items.length) {
       itemsText = order.items
-        .map(item => {
+        .map((item) => {
           const qty = item.qty || 1;
           const name = item.name || "Unknown Item";
           return `${qty}× ${name}`;
@@ -18,16 +18,18 @@ async function loadOrders() {
         .join("<br>");
     } else {
       // fallback for very old orders
-      itemsText = order.item || "Unknown Item";
+      const fallbackName = order.item || "Unknown Item";
+      const fallbackQty = order.qty || 1;
+      itemsText = `${fallbackQty}× ${fallbackName}`;
     }
 
-    //  Price cell: total price computed in app.py
+    // 👇 Price cell: total price computed in app.py
     const priceText = order.price || "0 QAR";
 
     row.innerHTML = `
       <td>${order.table}</td>
-      <td>${itemsText}</td>      <!-- shows '3× VOCADO DATES SMOOTHI' -->
-      <td>${priceText}</td>      <!-- e.g. '75 QAR' -->
+      <td>${itemsText}</td>          <!-- e.g. "7× STRAWBERRY SMOOTHI" -->
+      <td>${priceText}</td>          <!-- e.g. "175 QAR" -->
       <td>${order.status}</td>
       <td>${order.time}</td>
       <td>${order.notes || "-"}</td>
