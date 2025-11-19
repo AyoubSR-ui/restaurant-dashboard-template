@@ -6,23 +6,28 @@ async function loadOrders() {
   res.data.forEach((order, index) => {
     const row = document.createElement("tr");
 
-    // Build "qty × name" text
+    //  Items cell: "qty × name"
     let itemsText = "";
-    if (order.items && order.items.length) {
+    if (Array.isArray(order.items) && order.items.length) {
       itemsText = order.items
-        .map(i => `${i.qty || 1}× ${i.name}`)
+        .map(item => {
+          const qty = item.qty || 1;
+          const name = item.name || "Unknown Item";
+          return `${qty}× ${name}`;
+        })
         .join("<br>");
     } else {
+      // fallback for very old orders
       itemsText = order.item || "Unknown Item";
     }
 
-    // Separate price column (we store total as order.price)
+    //  Price cell: total price computed in app.py
     const priceText = order.price || "0 QAR";
 
     row.innerHTML = `
       <td>${order.table}</td>
-      <td>${itemsText}</td>      <!-- item name × qty -->
-      <td>${priceText}</td>      <!-- total price or first price -->
+      <td>${itemsText}</td>      <!-- shows '3× VOCADO DATES SMOOTHI' -->
+      <td>${priceText}</td>      <!-- e.g. '75 QAR' -->
       <td>${order.status}</td>
       <td>${order.time}</td>
       <td>${order.notes || "-"}</td>
