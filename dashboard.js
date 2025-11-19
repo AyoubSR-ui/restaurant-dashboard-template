@@ -1,8 +1,4 @@
-function formatToUTCPlus3(utcString) {
-  const dateUtc = new Date(utcString);                  // treat as UTC
-  const plus3 = new Date(dateUtc.getTime() + 3 * 60 * 60 * 1000);
-  return plus3.toLocaleTimeString("en-GB", { hour12: false }); // 01:10:44
-}
+
 async function loadOrders() {
   const res = await axios.get("/orders");
   const tbody = document.querySelector("tbody");
@@ -15,7 +11,8 @@ async function loadOrders() {
       <td>${order.item}</td>
       <td>${order.price}</td>
       <td>${order.status}</td>
-      <td>${formatToUTCPlus3(order.time)}</td>
+      <td>${order.time}</td>
+
       <td>
         <button class="ready" onclick="updateStatus('${order.time}', 'Ready')">Ready</button>
         <button class="served" onclick="updateStatus('${order.time}', 'Served')">Served</button>

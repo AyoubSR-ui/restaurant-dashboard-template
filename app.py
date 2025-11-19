@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import os
 
 # ---------------------------------
@@ -47,7 +47,7 @@ def submit_order():
             "price": data.get('price', '0 QAR'),
             "notes": data.get('notes', ''),
             "status": "Pending",
-            "time": datetime.now().strftime("%H:%M:%S")
+            "time": (datetime.now(timezone.utc) + timedelta(hours=3)).strftime("%H:%M:%S")
         }
 
         orders.append(order)
