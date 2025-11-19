@@ -20,15 +20,18 @@ def customer_page():
     """Serve the customer-facing ordering page (en.html)."""
     return send_from_directory('.', 'en.html')
 
+
 @app.route('/dashboard')
 def barista_dashboard():
     """Serve the barista dashboard page (dashboard.html)."""
     return send_from_directory('.', 'dashboard.html')
 
+
 # Serve any other static files (images, CSS, JS, etc.)
 @app.route('/<path:filename>')
 def serve_static(filename):
     return send_from_directory('.', filename)
+
 
 # ---------------------------------
 # API ROUTES
@@ -37,26 +40,79 @@ def serve_static(filename):
 # --- Route: Submit new order ---
 @app.route('/submit_order', methods=['POST'])
 def submit_order():
-    """Receive a new order from the customer page."""
+    """Receive a new order from the customer page (supports multi-items cart)."""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
+        print("📥 RAW ORDER DATA:", data)   # <-- Watch this in the terminal
 
+        # 1) Read items[] from payload (cart from menu.js)
+        raw_items = data.get("items") or []
+
+        normalized_items = []
+        for it in raw_items:
+            if not isinstance(it, dict):
+                continue
+
+            # Be flexible with key names from JS
+            name = it.get("name") or it.get("item") or "Unknown Item"
+            price = it.get("price") or it.get("price_qr") or "0 QAR"
+            qty = it.get("qty") or it.get("quantity") or 1
+
+            try:
+                qty = int(qty)
+            except (TypeError, ValueError):
+                qty = 1
+
+            normalized_items.append({
+                "name": str(name),
+                "price": str(price),
+                "qty": qty
+            })
+
+        # 2) Fallback for old single-item requests (no items[])
+        if not normalized_items:
+            fallback_name = data.get("item", "Unknown Item")
+            fallback_price = data.get("price", "0 QAR")
+            fallback_qty = int(data.get("qty", 1) or 1)
+            normalized_items = [{
+                "name": str(fallback_name),
+                "price": str(fallback_price),
+                "qty": fallback_qty
+            }]
+
+        # 3) Compute total price, e.g. 2×(25 QAR) = 50 QAR
+        import re
+
+        def parse_price(p):
+            m = re.search(r'(\d+(\.\d+)?)', str(p))
+            return float(m.group(1)) if m else 0.0
+
+        total_value = sum(parse_price(i["price"]) * i["qty"] for i in normalized_items)
+        display_price = f"{total_value:.0f} QAR"
+
+        # 4) Build final order object used by dashboard
         order = {
             "table": data.get('table', 'Unknown'),
-            "item": data.get('item', 'Unknown Item'),
-            "price": data.get('price', '0 QAR'),
+            "items": normalized_items,                 # full list of {name,price,qty}
+
+            # keep these for compatibility with existing dashboard columns
+            "item": normalized_items[0]["name"],
+            "price": display_price,                    # total price
+
             "notes": data.get('notes', ''),
             "status": "Pending",
             "time": (datetime.now(timezone.utc) + timedelta(hours=3)).strftime("%H:%M:%S")
         }
 
         orders.append(order)
-        print(f"✅ New Order: {order}")
+        print("✅ New Order Stored:", order)           # <-- Should show correct name/price
         return jsonify({"status": "success", "message": "Order received!"}), 200
 
     except Exception as e:
         print("❌ Error receiving order:", e)
         return jsonify({"status": "error", "message": str(e)}), 400
+
+
 
 
 # --- Route: Get all orders for dashboard ---
@@ -106,9 +162,3 @@ def clear_orders():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
-
-
-
-
-
-

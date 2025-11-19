@@ -7273,6 +7273,7 @@
     </div>
 <!-- Order Modal Controls -->
 <div id="order_controls" style="margin-top:15px; text-align:center; display:none;">
+
   <label style="font-weight:bold;">Select Table:</label>
   <select id="tableSelect" style="padding:5px; border-radius:5px; margin:10px;">
     <option value="Table 1">Table 1</option>
@@ -7280,21 +7281,48 @@
     <option value="Table 3">Table 3</option>
     <option value="Table 4">Table 4</option>
   </select>
+
   <br>
+
   <label style="font-weight:bold;">Add Notes:</label><br>
   <textarea id="extraNotes" placeholder="e.g. less sugar, extra ice..." rows="2" cols="30"
     style="border-radius:5px; padding:5px; margin-top:5px;"></textarea>
-  <br>
-  <button id="confirmOrder" style="
-      background:#4CAF50;
+
+  <!-- ✅ Selected items box (cart) -->
+  <div id="selected-items-box" style="margin-top:15px; text-align:left; padding:10px; background:#f7f7f7; border-radius:8px;">
+    <h3 style="margin-top:0;">Selected items</h3>
+    <div id="selected-items-list">
+      <p>No items selected yet.</p>
+    </div>
+  </div>
+
+  <!-- ✅ Cart buttons -->
+  <button id="add-to-order-btn" type="button" style="
+      background:#ff9800;
       color:white;
-      padding:10px 20px;
+      padding:8px 16px;
       margin-top:15px;
       border:none;
       border-radius:8px;
       cursor:pointer;
       font-weight:bold;
-    ">Place Order</button>
+    ">
+    Add to selected items
+  </button>
+
+  <button id="place-order-btn" type="button" style="
+      background:#4CAF50;
+      color:white;
+      padding:8px 20px;
+      margin-top:15px;
+      border:none;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:bold;
+      margin-left:8px;
+    ">
+    Place Order
+  </button>
 </div>
 </div>
 
@@ -7320,5 +7348,116 @@
             $('#modal_main_title').text(modalTitle);
         });
     </script>
+
+    <script>
+  // All selected products for this order
+  let cart = [];
+  // Product currently opened in the big modal
+  let currentItem = null;
+
+  // Call this when user clicks a product card
+  // Example on a card: onclick="openProductModal('BANANA CHOCOLATE SMOOTHI', '25 QAR')"
+  function openProductModal(name, price) {
+    currentItem = { name, price };
+
+    // here you already show the modal and set the big image/title
+    const titleEl = document.getElementById("product-title");
+    if (titleEl) titleEl.textContent = name;
+
+    // make sure controls are visible
+    document.getElementById("order_controls").style.display = "block";
+  }
+
+  // Render selected items list
+  function renderSelectedItems() {
+    const container = document.getElementById("selected-items-list");
+    if (!container) return;
+
+    if (!cart.length) {
+      container.innerHTML = "<p>No items selected yet.</p>";
+      return;
+    }
+
+    container.innerHTML = cart
+      .map((item, index) => `
+        <div class="selected-item-row" style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <span>${item.qty}× ${item.name} (${item.price})</span>
+          <button type="button" onclick="removeFromCart(${index})" style="
+              background:#e53935;
+              color:white;
+              border:none;
+              border-radius:4px;
+              padding:2px 6px;
+              cursor:pointer;
+              font-size:12px;
+          ">Remove</button>
+        </div>
+      `)
+      .join("");
+  }
+
+  // Remove one item from cart
+  function removeFromCart(index) {
+    cart.splice(index, 1);
+    renderSelectedItems();
+  }
+
+  // ✅ Add current product to cart
+  document.getElementById("add-to-order-btn").addEventListener("click", () => {
+    if (!currentItem) {
+      alert("No product selected.");
+      return;
+    }
+
+    // If you have a quantity input, use it; otherwise default to 1
+    const qtyInput = document.getElementById("qtyInput");
+    const qty = qtyInput ? parseInt(qtyInput.value || "1", 10) : 1;
+
+    cart.push({
+      name: currentItem.name,
+      price: currentItem.price,
+      qty: qty
+    });
+
+    renderSelectedItems();
+  });
+
+  // ✅ Send full order (all items in cart) to backend
+  document.getElementById("place-order-btn").addEventListener("click", async () => {
+    const table = document.getElementById("tableSelect").value;
+    const notes = document.getElementById("extraNotes").value;
+
+    if (!cart.length) {
+      alert("Please add at least one item to the order.");
+      return;
+    }
+
+    try {
+      const res = await fetch("/submit_order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          table,
+          notes,
+          items: cart       // 🔥 multi-item payload
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Error submitting order");
+
+      alert("Order placed successfully!");
+
+      // Clear cart for next order
+      cart = [];
+      renderSelectedItems();
+      // Optional: hide modal / reset controls
+      // document.getElementById("order_controls").style.display = "none";
+    } catch (err) {
+      console.error(err);
+      alert("Failed to place order.");
+    }
+  });
+</script>
 </body>
 </html>
