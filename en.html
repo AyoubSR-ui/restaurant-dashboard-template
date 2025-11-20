@@ -7271,6 +7271,11 @@
     <div id="kt_scrolltop" class="scrolltop" data-kt-scrolltop="true">
         <i class="las la-arrow-up fs-2x text-primary"></i>
     </div>
+    <!-- Floating Call Waiter button -->
+    <button id="global-call-waiter" class="call-waiter-floating">
+  🔔 Call Waiter
+   </button>
+
 <!-- Order Modal Controls -->
 <div id="order_controls" style="margin-top:15px; text-align:center; display:none;">
 
@@ -7456,6 +7461,58 @@
     } catch (err) {
       console.error(err);
       alert("Failed to place order.");
+    }
+  });
+</script>
+<script>
+  const CALL_WAITER_URL = "https://restaurant-dashboard-template.onrender.com/call_waiter";
+
+  document.getElementById("global-call-waiter").addEventListener("click", async () => {
+    // 1) Ask which table the waiter should visit
+    let table = prompt("Please enter your table number so the waiter can find you:");
+
+    if (table === null) {
+      // user cancelled
+      return;
+    }
+
+    table = String(table).trim();
+    if (!table) {
+      alert("⚠️ Table number is required to call the waiter.");
+      return;
+    }
+
+    // 2) Optional note for the waiter
+    let message = prompt("Optional: add a short note for the waiter (e.g. need menu, need bill, extra napkins):");
+    if (message === null) {
+      message = "";
+    }
+
+    const payload = {
+      table: table,
+      message: message
+    };
+
+    console.log("🔔 Calling waiter:", payload);
+
+    try {
+      const res = await fetch(CALL_WAITER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      console.log("✅ Waiter call response:", data);
+
+      if (data.status === "success") {
+        alert("✅ The waiter has been notified. Someone is coming to table " + table + ".");
+      } else {
+        alert("⚠️ Could not notify the waiter: " + (data.message || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("❌ Network error calling waiter:", err);
+      alert("⚠️ Server not reachable. Please try again or ask the waiter directly.");
     }
   });
 </script>
