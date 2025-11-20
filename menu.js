@@ -1,4 +1,4 @@
-// === MENU.JS FINAL PRODUCTION VERSION (WITH CART & FROZEN ADD) ===
+// === MENU.JS FINAL PRODUCTION VERSION (WITH CART, FROZEN ADD & PER-ITEM NOTES) ===
 
 // --- Toggle Category Content Visibility ---
 function toggleContentVisibility(str) {
@@ -89,6 +89,7 @@ window.addEventListener('scroll', function () {
 // ======================
 
 // Global cart for current order
+// Each item: { name, price, qty, note }
 let cart = [];
 
 // Helper: get current item name & price from modal
@@ -122,15 +123,24 @@ function renderSelectedItems(modal) {
       <div class="selected-item-row" style="
             display:flex;
             justify-content:space-between;
-            align-items:center;
+            align-items:flex-start;
             margin-bottom:6px;
             padding:4px 6px;
-            background:#ffffff;
+            background:transparent;       /* no white strip */
             border-radius:4px;
           ">
-        <span style="font-weight:600; color:#3e2723;">
-          ${item.qty}× ${item.name} (${item.price})
-        </span>
+        <div>
+          <span style="font-weight:600; color:#3e2723;">
+            ${item.qty}× ${item.name} (${item.price})
+          </span>
+          ${
+            item.note
+              ? `<div style="font-size:12px; color:#5d4037; margin-top:2px;">
+                   Note: ${item.note}
+                 </div>`
+              : ""
+          }
+        </div>
         <button type="button"
                 data-remove-index="${index}"
                 style="background:#e53935; color:#fff; border:none; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:12px;">
@@ -151,7 +161,7 @@ document.addEventListener("shown.bs.modal", function (e) {
   const modalBody = modal.querySelector(".modal-body");
   if (!modalBody) return;
 
-  // 1) Inject controls ONLY if they don't exist yet
+  // Inject controls once
   if (!modalBody.querySelector("#order_controls")) {
     const formHTML = `
       <div id="order_controls" style="margin-top:20px; text-align:left;">
@@ -225,56 +235,71 @@ document.addEventListener("shown.bs.modal", function (e) {
     modalBody.insertAdjacentHTML("beforeend", formHTML);
   }
 
-  // 2) Sync controls with CURRENT product + cart
   const { itemName, itemPrice } = getItemFromModal(modal);
-  const qtyInput = modal.querySelector("#qtyInput");
-  const addBtn   = modal.querySelector("#add-to-order-btn");
+  const qtyInput   = modal.querySelector("#qtyInput");
+  const notesArea  = modal.querySelector("#extraNotes");
+  const addBtn     = modal.querySelector("#add-to-order-btn");
 
   const existing = cart.find(i => i.name === itemName && i.price === itemPrice);
 
-  // Quantity box – if item already in cart, show its qty, else 1
-  if (qtyInput) {
-    qtyInput.value = existing ? existing.qty : "1";
+  if (existing) {
+    // Restore qty & note for this item
+    if (qtyInput)  qtyInput.value  = existing.qty;
+    if (notesArea) notesArea.value = existing.note || "";
 
-    // bind only once
-    if (!qtyInput.dataset.bound) {
-      qtyInput.dataset.bound = "1";
-      qtyInput.addEventListener("input", function () {
-        let value = parseInt(this.value || "1", 10);
-        if (isNaN(value) || value < 1) value = 1;
-        this.value = value;
-
-        const modal = this.closest(".modal");
-        const { itemName, itemPrice } = getItemFromModal(modal);
-        const current = cart.find(i => i.name === itemName && i.price === itemPrice);
-        if (current) {
-          current.qty = value;
-          renderSelectedItems(modal);
-        }
-      });
-    }
-  }
-
-  // Add button – freeze if item already in cart
-  if (addBtn) {
-    if (existing) {
-      addBtn.disabled = true;
-      addBtn.textContent = "Already added";
+    // Freeze add button (already added)
+    if (addBtn) {
+      addBtn.disabled     = true;
+      addBtn.textContent  = "Already added";
       addBtn.style.opacity = "0.6";
-      addBtn.style.cursor = "not-allowed";
-    } else {
-      addBtn.disabled = false;
-      addBtn.textContent = "Add to selected items";
+      addBtn.style.cursor  = "not-allowed";
+    }
+  } else {
+    if (qtyInput)  qtyInput.value  = "1";
+    if (notesArea) notesArea.value = "";
+    if (addBtn) {
+      addBtn.disabled     = false;
+      addBtn.textContent  = "Add to selected items";
       addBtn.style.opacity = "1";
-      addBtn.style.cursor = "pointer";
+      addBtn.style.cursor  = "pointer";
     }
   }
 
-  // 3) Update list with current cart
+  // Attach qty listener once per element
+  if (qtyInput && !qtyInput.dataset.listenerAttached) {
+    qtyInput.addEventListener("input", function () {
+      let value = parseInt(this.value || "1", 10);
+      if (isNaN(value) || value < 1) value = 1;
+      this.value = value;
+
+      const { itemName, itemPrice } = getItemFromModal(modal);
+      const current = cart.find(i => i.name === itemName && i.price === itemPrice);
+      if (current) {
+        current.qty = value;
+        renderSelectedItems(modal);
+      }
+    });
+    qtyInput.dataset.listenerAttached = "1";
+  }
+
+  // Attach notes listener once per element
+  if (notesArea && !notesArea.dataset.listenerAttached) {
+    notesArea.addEventListener("input", function () {
+      const { itemName, itemPrice } = getItemFromModal(modal);
+      const current = cart.find(i => i.name === itemName && i.price === itemPrice);
+      if (current) {
+        current.note = this.value;
+        renderSelectedItems(modal);
+      }
+    });
+    notesArea.dataset.listenerAttached = "1";
+  }
+
+  // Render list with current cart for this modal
   renderSelectedItems(modal);
 });
 
-// --- Global Click Handling for Cart Buttons + Remove + Place Order ---
+// --- Click Handling for Cart Buttons + Remove + Place Order ---
 document.addEventListener("click", async function (e) {
   const target = e.target;
 
@@ -285,49 +310,63 @@ document.addEventListener("click", async function (e) {
     if (!isNaN(index)) {
       const removed = cart[index];
       cart.splice(index, 1);
-      renderSelectedItems(modal);
+      if (modal) {
+        renderSelectedItems(modal);
 
-      // If removed item is the current modal product -> re-enable Add button
-      if (removed && modal) {
+        // If removed item is current modal product -> re-enable Add button
         const { itemName, itemPrice } = getItemFromModal(modal);
-        if (removed.name === itemName && removed.price === itemPrice) {
+        if (removed && removed.name === itemName && removed.price === itemPrice) {
           const addBtn = modal.querySelector("#add-to-order-btn");
           const qtyInput = modal.querySelector("#qtyInput");
+          const notesArea = modal.querySelector("#extraNotes");
           if (addBtn) {
             addBtn.disabled = false;
             addBtn.textContent = "Add to selected items";
             addBtn.style.opacity = "1";
             addBtn.style.cursor = "pointer";
           }
-          if (qtyInput) qtyInput.value = "1";
+          if (qtyInput)  qtyInput.value  = "1";
+          if (notesArea) notesArea.value = "";
         }
       }
     }
     return;
   }
 
-  // Add current item to selected items
+  // Add current item to selected items (freeze button after first add)
   if (target && target.id === "add-to-order-btn") {
     console.log("🟢 Add to selected items clicked!");
 
     const modal = target.closest(".modal");
+    if (!modal) return;
+
     const { itemName, itemPrice } = getItemFromModal(modal);
 
-    const qtyInput = modal.querySelector("#qtyInput");
+    const qtyInput  = modal.querySelector("#qtyInput");
+    const notesArea = modal.querySelector("#extraNotes");
+
     let qty = parseInt(qtyInput?.value || "1", 10);
     if (isNaN(qty) || qty < 1) qty = 1;
 
+    const note = notesArea ? notesArea.value : "";
+
     let existing = cart.find(i => i.name === itemName && i.price === itemPrice);
     if (existing) {
-      existing.qty = qty;
+      existing.qty  = qty;
+      existing.note = note;
     } else {
-      cart.push({ name: itemName, price: itemPrice, qty });
+      cart.push({
+        name: itemName,
+        price: itemPrice,
+        qty: qty,
+        note: note
+      });
       existing = cart[cart.length - 1];
     }
 
     renderSelectedItems(modal);
 
-    // Freeze button after add for THIS product
+    // Freeze button
     target.disabled = true;
     target.textContent = "Already added";
     target.style.opacity = "0.6";
@@ -341,8 +380,9 @@ document.addEventListener("click", async function (e) {
     console.log("🟢 Place Order (multi-items) clicked!");
 
     const modal = target.closest(".modal");
+    if (!modal) return;
+
     const table = modal.querySelector("#tableSelect")?.value || "";
-    const notes = modal.querySelector("#extraNotes")?.value || "";
 
     if (!table) {
       alert("⚠️ Please select a table before placing your order.");
@@ -355,30 +395,30 @@ document.addEventListener("click", async function (e) {
     }
 
     const orderData = {
-      table,
-      notes,
-      items: cart
+      table: table,
+      notes: "",      // order-level note (we're using per-item notes instead)
+      items: cart     // each item has its own note & qty
     };
 
     console.log("📦 Sending order data:", orderData);
 
     try {
-      const response = await fetch(
-        "https://restaurant-dashboard-template.onrender.com/submit_order",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(orderData)
-        }
-      );
+      const response = await fetch("https://restaurant-dashboard-template.onrender.com/submit_order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData)
+      });
 
       const result = await response.json();
       console.log("✅ Flask response:", result);
 
       if (result.status === "success") {
         alert("✅ Your order has been received! It will be ready soon.");
+        // Clear cart after successful order
         cart = [];
         renderSelectedItems(modal);
+        // Optionally close modal:
+        // $(modal).modal('hide');
       } else {
         alert("⚠️ Error submitting order: " + (result.message || "Unknown error"));
       }
