@@ -149,118 +149,132 @@ document.addEventListener("shown.bs.modal", function (e) {
   console.log("🟢 Menu modal opened via Bootstrap event");
 
   const modalBody = modal.querySelector(".modal-body");
-  if (!modalBody || modalBody.querySelector("#order_controls")) return;
+  if (!modalBody) return;
 
-  const formHTML = `
-  <div id="order_controls" style="margin-top:20px; text-align:left;">
-    <hr style="margin:10px 0;">
+  // 1) Inject controls ONLY if they don't exist yet
+  if (!modalBody.querySelector("#order_controls")) {
+    const formHTML = `
+      <div id="order_controls" style="margin-top:20px; text-align:left;">
+        <hr style="margin:10px 0;">
 
-    <label style="font-weight:bold;">Select Table:</label><br>
-    <select id="tableSelect" style="
-        width:100%;
-        padding:8px;
-        margin-top:4px;
-        margin-bottom:12px;
-        border-radius:10px;
-        border:1px solid #d0b08a;
-        background:#f3dec0;
-      ">
-      <option value="" selected disabled>-- Select Table --</option>
-      ${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">Table ${i + 1}</option>`).join("")}
-    </select>
+        <label style="font-weight:bold;">Select Table:</label><br>
+        <select id="tableSelect" style="
+            width:100%;
+            padding:8px;
+            margin-top:4px;
+            margin-bottom:12px;
+            border-radius:10px;
+            border:1px solid #d0b08a;
+            background:#f3dec0;
+          ">
+          <option value="" selected disabled>-- Select Table --</option>
+          ${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">Table ${i + 1}</option>`).join("")}
+        </select>
 
-    <label style="font-weight:bold;">Quantity:</label><br>
-    <input id="qtyInput" type="number" min="1" value="1" style="
-        width:100%;
-        padding:8px;
-        margin-top:4px;
-        margin-bottom:15px;
-        border-radius:10px;
-        border:1px solid #d0b08a;
-        background:#f3dec0;
-      ">
+        <label style="font-weight:bold;">Quantity:</label><br>
+        <input id="qtyInput" type="number" min="1" value="1" style="
+            width:100%;
+            padding:8px;
+            margin-top:4px;
+            margin-bottom:15px;
+            border-radius:10px;
+            border:1px solid #d0b08a;
+            background:#f3dec0;
+          ">
 
-    <label style="font-weight:bold;">Notes (for this item):</label><br>
-    <textarea id="extraNotes" placeholder="e.g. Less sugar, extra ice..." style="
-        width:100%;
-        padding:8px;
-        margin-top:4px;
-        margin-bottom:15px;
-        border-radius:10px;
-        border:1px solid #d0b08a;
-        background:#f3dec0;
-        resize:vertical;
-      "></textarea>
+        <label style="font-weight:bold;">Notes (for this item):</label><br>
+        <textarea id="extraNotes" placeholder="e.g. Less sugar, extra ice..." style="
+            width:100%;
+            padding:8px;
+            margin-top:4px;
+            margin-bottom:15px;
+            border-radius:10px;
+            border:1px solid #d0b08a;
+            background:#f3dec0;
+            resize:vertical;
+          "></textarea>
 
-    <label style="display:block; font-weight:bold; margin-bottom:6px;">Selected items:</label>
+        <label style="display:block; font-weight:bold; margin-bottom:6px;">Selected items:</label>
 
-    <div id="selected-items-box" style="
-        text-align:left;
-        padding:10px;
-        background:#f3dec0;
-        border-radius:10px;
-        border:1px solid #d0b08a;
-        color:#3e2723;
-        margin-bottom:15px;
-      ">
-      <div id="selected-items-list">
-        <p style="margin:0; opacity:0.8;">No items selected yet.</p>
+        <div id="selected-items-box" style="
+            text-align:left;
+            padding:10px;
+            background:#f3dec0;
+            border-radius:10px;
+            border:1px solid #d0b08a;
+            color:#3e2723;
+            margin-bottom:15px;
+          ">
+          <div id="selected-items-list">
+            <p style="margin:0; opacity:0.8;">No items selected yet.</p>
+          </div>
+        </div>
+
+        <button id="add-to-order-btn"
+                type="button"
+                style="width:100%; background:#ff9800; color:#fff; border:none; padding:10px; border-radius:8px; margin-top:4px;">
+          Add to selected items
+        </button>
+        <button id="place-order-btn"
+                type="button"
+                style="width:100%; background:#6a4b29; color:#fff; border:none; padding:10px; border-radius:8px; margin-top:8px;">
+          Place Order
+        </button>
       </div>
-    </div>
+    `;
+    modalBody.insertAdjacentHTML("beforeend", formHTML);
+  }
 
-    <button id="add-to-order-btn"
-            type="button"
-            style="width:100%; background:#ff9800; color:#fff; border:none; padding:10px; border-radius:8px; margin-top:4px;">
-      Add to selected items
-    </button>
-    <button id="place-order-btn"
-            type="button"
-            style="width:100%; background:#6a4b29; color:#fff; border:none; padding:10px; border-radius:8px; margin-top:8px;">
-      Place Order
-    </button>
-  </div>
-`;
-
-  modalBody.insertAdjacentHTML("beforeend", formHTML);
-
-   // Get current product info
+  // 2) Sync controls with CURRENT product + cart
   const { itemName, itemPrice } = getItemFromModal(modal);
   const qtyInput = modal.querySelector("#qtyInput");
   const addBtn   = modal.querySelector("#add-to-order-btn");
 
-  // Always start from 1 when opening the modal
-  if (qtyInput) qtyInput.value = "1";
+  const existing = cart.find(i => i.name === itemName && i.price === itemPrice);
 
-  // Make sure button looks active every time modal is opened
-  if (addBtn) {
-    addBtn.disabled = false;
-    addBtn.style.opacity = "1";
-    addBtn.textContent = "Add to selected items";
-    addBtn.style.cursor = "pointer";
-  }
-
-  // Live update quantity if the item is already in the cart
+  // Quantity box – if item already in cart, show its qty, else 1
   if (qtyInput) {
-    qtyInput.addEventListener("input", function () {
-      let value = parseInt(this.value || "1", 10);
-      if (isNaN(value) || value < 1) value = 1;
-      this.value = value;
+    qtyInput.value = existing ? existing.qty : "1";
 
-      const current = cart.find(
-        i => i.name === itemName && i.price === itemPrice
-      );
-      if (current) {
-        current.qty = value;
-        renderSelectedItems(modal);
-      }
-    });
+    // bind only once
+    if (!qtyInput.dataset.bound) {
+      qtyInput.dataset.bound = "1";
+      qtyInput.addEventListener("input", function () {
+        let value = parseInt(this.value || "1", 10);
+        if (isNaN(value) || value < 1) value = 1;
+        this.value = value;
+
+        const modal = this.closest(".modal");
+        const { itemName, itemPrice } = getItemFromModal(modal);
+        const current = cart.find(i => i.name === itemName && i.price === itemPrice);
+        if (current) {
+          current.qty = value;
+          renderSelectedItems(modal);
+        }
+      });
+    }
   }
 
-  // Render list with current cart
-  renderSelectedItems(modal);
- 
+  // Add button – freeze if item already in cart
+  if (addBtn) {
+    if (existing) {
+      addBtn.disabled = true;
+      addBtn.textContent = "Already added";
+      addBtn.style.opacity = "0.6";
+      addBtn.style.cursor = "not-allowed";
+    } else {
+      addBtn.disabled = false;
+      addBtn.textContent = "Add to selected items";
+      addBtn.style.opacity = "1";
+      addBtn.style.cursor = "pointer";
+    }
+  }
 
-// --- Click Handling for Cart Buttons + Remove + Place Order ---
+  // 3) Update list with current cart
+  renderSelectedItems(modal);
+});
+
+// --- Global Click Handling for Cart Buttons + Remove + Place Order ---
 document.addEventListener("click", async function (e) {
   const target = e.target;
 
@@ -292,7 +306,7 @@ document.addEventListener("click", async function (e) {
     return;
   }
 
-  // Add current item to selected items (only once)
+  // Add current item to selected items
   if (target && target.id === "add-to-order-btn") {
     console.log("🟢 Add to selected items clicked!");
 
@@ -305,21 +319,15 @@ document.addEventListener("click", async function (e) {
 
     let existing = cart.find(i => i.name === itemName && i.price === itemPrice);
     if (existing) {
-      // Already in cart: just sync quantity
       existing.qty = qty;
     } else {
-      // First time added
-      cart.push({
-        name: itemName,
-        price: itemPrice,
-        qty: qty
-      });
+      cart.push({ name: itemName, price: itemPrice, qty });
       existing = cart[cart.length - 1];
     }
 
     renderSelectedItems(modal);
 
-    // Freeze button after first add
+    // Freeze button after add for THIS product
     target.disabled = true;
     target.textContent = "Already added";
     target.style.opacity = "0.6";
@@ -347,30 +355,30 @@ document.addEventListener("click", async function (e) {
     }
 
     const orderData = {
-      table: table,
-      notes: notes,
-      items: cart   // multi-item payload for Flask
+      table,
+      notes,
+      items: cart
     };
 
     console.log("📦 Sending order data:", orderData);
 
     try {
-      const response = await fetch("https://restaurant-dashboard-template.onrender.com/submit_order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData)
-      });
+      const response = await fetch(
+        "https://restaurant-dashboard-template.onrender.com/submit_order",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(orderData)
+        }
+      );
 
       const result = await response.json();
       console.log("✅ Flask response:", result);
 
       if (result.status === "success") {
         alert("✅ Your order has been received! It will be ready soon.");
-        // Clear cart after successful order
         cart = [];
         renderSelectedItems(modal);
-        // Optionally close modal:
-        // $(modal).modal('hide');
       } else {
         alert("⚠️ Error submitting order: " + (result.message || "Unknown error"));
       }
@@ -379,5 +387,4 @@ document.addEventListener("click", async function (e) {
       alert("Server not reachable. Make sure Flask / Render is online.");
     }
   }
-});
 });
