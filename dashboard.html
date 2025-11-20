@@ -19,78 +19,85 @@
   <h1>☕ Live Orders Dashboard</h1>
   <table>
     <thead>
-  <tr>
-    <th>Table</th>
-    <th>Items</th>  <!-- qty × name (price) -->
-    <th>Price</th>
-    <th>Action</th>
-    <th>Time</th>
-    <th>Notes</th>
-    <th>Status</th>
-  </tr>
-</thead>
+      <tr>
+        <th>Table</th>
+        <th>Items</th>  <!-- qty × name -->
+        <th>Price</th>
+        <th>Action</th>
+        <th>Time</th>
+        <th>Notes</th>
+        <th>Status</th>
+      </tr>
+    </thead>
     <tbody id="orders-body"></tbody>
   </table>
 
   <script>
-  // Fetch all current orders
-  async function fetchOrders() {
-    try {
-      const res = await fetch("https://restaurant-dashboard-template.onrender.com/get_orders");
-      const data = await res.json();
-      const tbody = document.getElementById("orders-body");
-      tbody.innerHTML = "";
+    // Fetch all current orders
+    async function fetchOrders() {
+      try {
+        const res = await fetch("https://restaurant-dashboard-template.onrender.com/get_orders");
+        const data = await res.json();
+        console.log("🔎 Orders from API:", data);
 
-      data.forEach((order, i) => {
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${order.table}</td>
-          <td>${order.item}</td>
-          <td>${order.price}</td>
-          <td>${order.status}</td>
-          <td>${order.time}</td>
-          <td>${order.notes || '-'}</td>
-          <td>
-            <button class="ready" onclick="updateStatus(${i}, 'Ready')">Ready</button>
-            <button class="served" onclick="updateStatus(${i}, 'Served')">Served</button>
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
-    } catch (err) {
-      console.error("❌ Failed to fetch orders:", err);
-    }
-  }
+        const tbody = document.getElementById("orders-body");
+        tbody.innerHTML = "";
 
-  // Update order status
-  async function updateStatus(index, newStatus) {
-    try {
-      const res = await fetch("https://restaurant-dashboard-template.onrender.com/update_status", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ index, status: newStatus }),
-      });
+        data.forEach((order, i) => {
+          const row = document.createElement("tr");
 
-      const data = await res.json();
+          // Build "qty × item" text (fallback if qty is missing)
+          const qtyText =
+            typeof order.qty !== "undefined" && order.qty !== null
+              ? `${order.qty}× `
+              : "";
 
-      if (data.status === "success") {
-        console.log(`✅ Order ${index} updated to ${newStatus}`);
-        fetchOrders(); // Refresh dashboard
-      } else {
-        console.error("❌ Failed to update status:", data.message);
+          row.innerHTML = `
+            <td>${order.table}</td>
+            <td>${qtyText}${order.item}</td>
+            <td>${order.price}</td>
+            <td>${order.status}</td>
+            <td>${order.time}</td>
+            <td>${order.notes || '-'}</td>
+            <td>
+              <button class="ready" onclick="updateStatus(${i}, 'Ready')">Ready</button>
+              <button class="served" onclick="updateStatus(${i}, 'Served')">Served</button>
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (err) {
+        console.error("❌ Failed to fetch orders:", err);
       }
-    } catch (err) {
-      console.error("⚠️ Error sending update:", err);
     }
-  }
 
-  // Auto-refresh every 3 seconds
-  setInterval(fetchOrders, 3000);
-  fetchOrders();
+    // Update order status
+    async function updateStatus(index, newStatus) {
+      try {
+        const res = await fetch("https://restaurant-dashboard-template.onrender.com/update_status", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ index, status: newStatus }),
+        });
+
+        const data = await res.json();
+
+        if (data.status === "success") {
+          console.log(`✅ Order ${index} updated to ${newStatus}`);
+          fetchOrders(); // Refresh dashboard
+        } else {
+          console.error("❌ Failed to update status:", data.message);
+        }
+      } catch (err) {
+        console.error("⚠️ Error sending update:", err);
+      }
+    }
+
+    // Auto-refresh every 3 seconds
+    setInterval(fetchOrders, 3000);
+    fetchOrders();
   </script>
 </body>
 </html>
-
-
