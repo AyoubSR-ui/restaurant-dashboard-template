@@ -221,15 +221,23 @@ document.addEventListener("shown.bs.modal", function (e) {
         </div>
 
         <button id="add-to-order-btn"
-                type="button"
-                style="width:100%; background:#ff9800; color:#fff; border:none; padding:10px; border-radius:8px; margin-top:4px;">
-          Add to selected items
+        type="button"
+        style="width:100%; background:#ff9800; color:#fff; border:none; padding:10px; border-radius:8px; margin-top:4px;">
+              Add to selected items
+               </button>
+
+            <button id="call-waiter-btn"
+           type="button"
+        style="width:100%; background:#c62828; color:#fff; border:none; padding:10px; border-radius:8px; margin-top:8px;">
+        Call Waiter
         </button>
-        <button id="place-order-btn"
-                type="button"
-                style="width:100%; background:#6a4b29; color:#fff; border:none; padding:10px; border-radius:8px; margin-top:8px;">
-          Place Order
-        </button>
+
+            <button id="place-order-btn"
+        type="button"
+          style="width:100%; background:#6a4b29; color:#fff; border:none; padding:10px; border-radius:8px; margin-top:8px;">
+             Place Order
+            </button>
+
       </div>
     `;
     modalBody.insertAdjacentHTML("beforeend", formHTML);
@@ -371,6 +379,48 @@ document.addEventListener("click", async function (e) {
     target.textContent = "Already added";
     target.style.opacity = "0.6";
     target.style.cursor = "not-allowed";
+
+    return;
+  }
+
+
+    // Call waiter for this table
+  if (target && target.id === "call-waiter-btn") {
+    const modal = target.closest(".modal");
+    const table = modal.querySelector("#tableSelect")?.value || "";
+    const notes = modal.querySelector("#extraNotes")?.value || "";
+
+    if (!table) {
+      alert("⚠️ Please select your table before calling the waiter.");
+      return;
+    }
+
+    const payload = {
+      table: table,
+      message: notes
+    };
+
+    console.log("🔔 Calling waiter:", payload);
+
+    try {
+      const response = await fetch("https://restaurant-dashboard-template.onrender.com/call_waiter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      console.log("✅ Waiter call response:", result);
+
+      if (result.status === "success") {
+        alert("✅ The waiter has been notified. Someone is coming to your table.");
+      } else {
+        alert("⚠️ Could not notify the waiter: " + (result.message || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("❌ Network error calling waiter:", err);
+      alert("Server not reachable. Please try again or call the waiter manually.");
+    }
 
     return;
   }

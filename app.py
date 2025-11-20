@@ -102,6 +102,30 @@ def submit_order():
 
 #///////////////////////////////////////////////////////////////////
 
+
+@app.route('/call_waiter', methods=['POST'])
+def call_waiter():
+    data = request.get_json() or {}
+    table = data.get('table')
+    message = data.get('message', '').strip() or 'Customer asked for the waiter'
+
+    if not table:
+        return jsonify({"status": "error", "message": "Table is required"}), 400
+
+    now = datetime.now().strftime("%H:%M:%S")
+
+    # You can push it into the same orders list so it appears on the dashboard
+    orders.append({
+        "table": table,
+        "items": "🔔 WAITER CALL",
+        "price": "",
+        "status": "Pending",
+        "time": now,
+        "notes": message
+    })
+
+    return jsonify({"status": "success", "message": "Waiter notified"})
+
 # --- Route: Get all orders for dashboard ---
 @app.route('/get_orders', methods=['GET'])
 def get_orders():
