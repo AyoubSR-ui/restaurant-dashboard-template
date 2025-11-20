@@ -40,84 +40,67 @@ def serve_static(filename):
 # --- Route: Submit new order ---
 @app.route('/submit_order', methods=['POST'])
 def submit_order():
-    """Receive a new order and split cart items into separate rows."""
+    """Receive a new order from the customer page."""
     try:
-        data = request.get_json(silent=True) or {}
-        print("📥 RAW ORDER DATA:", data)
+        data = request.get_json() or {}
 
-        raw_items = data.get("items") or []
+        qatar_time = datetime.now(timezone.utc) + timedelta(hours=3)
+        time_str = qatar_time.strftime("%H:%M:%S")
 
-        # Helper to parse "25 QAR" -> 25.0
-        import re
+        table = data.get('table', 'Unknown')
+        global_note = data.get('notes', '')
 
-        def parse_price(p):
-            m = re.search(r'(\d+(\.\d+)?)', str(p))
-            return float(m.group(1)) if m else 0.0
+        # New multi-item payload
+        items = data.get('items')
+        if items:
+            for item in items:
+                name = item.get('name', 'Unknown Item')
+                qty  = int(item.get('qty', 1) or 1)
+                price_str = item.get('price', '0 QAR')  # "25 QAR"
 
-        table = data.get("table", "Unknown")
-        notes = data.get("notes", "")
-
-        # If we have a cart (items[])
-        if raw_items:
-            for it in raw_items:
-                if not isinstance(it, dict):
-                    continue
-
-                name = it.get("name") or it.get("item") or "Unknown Item"
-                price_str = it.get("price") or it.get("price_qr") or "0 QAR"
-                qty = it.get("qty") or it.get("quantity") or 1
                 try:
-                    qty = int(qty)
-                except (TypeError, ValueError):
-                    qty = 1
+                    unit_price = float(price_str.split()[0])
+                except (ValueError, IndexError):
+                    unit_price = 0.0
 
-                unit_value = parse_price(price_str)
-                total_value = unit_value * qty
-                total_price_str = f"{total_value:.0f} QAR"
+                line_total = unit_price * qty
+                line_price = f"{int(line_total)} QAR"
+
+                note = item.get('note') or global_note
 
                 order = {
                     "table": table,
-                    "item": str(name),
+                    "item": name,
                     "qty": qty,
-                    "price": total_price_str,
-                    "notes": notes,
+                    "price": line_price,
+                    "notes": note,
                     "status": "Pending",
-                    "time": (datetime.now(timezone.utc) + timedelta(hours=3)).strftime("%H:%M:%S"),
+                    "time": time_str,
                 }
                 orders.append(order)
-                print("✅ Stored order row:", order)
 
-        # Fallback for old single-item requests with no items[]
         else:
-            name = data.get("item", "Unknown Item")
-            price_str = data.get("price", "0 QAR")
-            qty = int(data.get("qty", 1) or 1)
-
-            unit_value = parse_price(price_str)
-            total_value = unit_value * qty
-            total_price_str = f"{total_value:.0f} QAR"
-
+            # Backwards-compatible single-item order
+            qty = int(data.get('qty', 1) or 1)
             order = {
                 "table": table,
-                "item": str(name),
+                "item": data.get('item', 'Unknown Item'),
                 "qty": qty,
-                "price": total_price_str,
-                "notes": notes,
+                "price": data.get('price', '0 QAR'),
+                "notes": global_note,
                 "status": "Pending",
-                "time": (datetime.now(timezone.utc) + timedelta(hours=3)).strftime("%H:%M:%S"),
+                "time": time_str,
             }
             orders.append(order)
-            print("✅ Stored fallback order row:", order)
 
+        print("✅ New orders:", orders[-len(items):] if items else orders[-1])
         return jsonify({"status": "success", "message": "Order received!"}), 200
 
     except Exception as e:
         print("❌ Error receiving order:", e)
         return jsonify({"status": "error", "message": str(e)}), 400
 
-
-
-
+#///////////////////////////////////////////////////////////////////
 
 # --- Route: Get all orders for dashboard ---
 @app.route('/get_orders', methods=['GET'])
