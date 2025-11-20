@@ -1,4 +1,5 @@
-// === MENU.JS FINAL PRODUCTION VERSION (WITH CART, FROZEN ADD & PER-ITEM NOTES) ===
+// === MENU.JS FINAL PRODUCTION VERSION
+// (CART, FROZEN ADD, PER-ITEM NOTES, CALL WAITER, MOBILE-FRIENDLY) ===
 
 // --- Toggle Category Content Visibility ---
 function toggleContentVisibility(str) {
@@ -92,6 +93,9 @@ window.addEventListener('scroll', function () {
 // Each item: { name, price, qty, note }
 let cart = [];
 
+// Floating Call Waiter button (bottom-right)
+const floatingWaiterBtn = document.getElementById("call-waiter-btn");
+
 // Helper: get current item name & price from modal
 function getItemFromModal(modal) {
   const itemName =
@@ -151,34 +155,23 @@ function renderSelectedItems(modal) {
     .join("");
 }
 
-// --- Modal Form Injection (Bootstrap shown event) ---
+// --- Show / hide floating Call Waiter with Bootstrap modals ---
+
+// Hide floating Call Waiter when any menu modal opens
 document.addEventListener("shown.bs.modal", function (e) {
   const modal = e.target;
   if (!modal.id || !modal.id.includes("menu_modal")) return;
 
+  if (floatingWaiterBtn) {
+    floatingWaiterBtn.style.display = "none";
+  }
+
   console.log("🟢 Menu modal opened via Bootstrap event");
-
-  // 🔴 NEW: hide floating Call Waiter while product modal is open
-  const floatingWaiter = document.getElementById("call-waiter-fab"); // <- use your id here
-  if (floatingWaiter) {
-    floatingWaiter.style.display = "none";
-  }
-
-  // 🔴 NEW: when any menu modal is closed, show the floating Call Waiter again
-document.addEventListener("hidden.bs.modal", function (e) {
-  const modal = e.target;
-  if (!modal.id || !modal.id.includes("menu_modal")) return;
-
-  const floatingWaiter = document.getElementById("call-waiter-fab"); // same id
-  if (floatingWaiter) {
-    floatingWaiter.style.display = "flex"; // or "block" depending on your CSS
-  }
-});
 
   const modalBody = modal.querySelector(".modal-body");
   if (!modalBody) return;
 
-  // Inject controls once
+  // Inject controls once per modal
   if (!modalBody.querySelector("#order_controls")) {
     const formHTML = `
   <div id="order_controls" style="margin-top:20px; text-align:left;">
@@ -290,7 +283,7 @@ document.addEventListener("hidden.bs.modal", function (e) {
   }
 
   // Attach qty listener once per element
-     if (qtyInput && !qtyInput.dataset.listenerAttached) {
+  if (qtyInput && !qtyInput.dataset.listenerAttached) {
     qtyInput.addEventListener("input", function () {
       const val = this.value.trim();
 
@@ -318,7 +311,6 @@ document.addEventListener("hidden.bs.modal", function (e) {
     qtyInput.dataset.listenerAttached = "1";
   }
 
-
   // Attach notes listener once per element
   if (notesArea && !notesArea.dataset.listenerAttached) {
     notesArea.addEventListener("input", function () {
@@ -334,6 +326,17 @@ document.addEventListener("hidden.bs.modal", function (e) {
 
   // Render list with current cart for this modal
   renderSelectedItems(modal);
+});
+
+// Show floating Call Waiter again when any menu modal closes
+document.addEventListener("hidden.bs.modal", function (e) {
+  const modal = e.target;
+  if (!modal.id || !modal.id.includes("menu_modal")) return;
+
+  if (floatingWaiterBtn) {
+    // use flex/block depending on your CSS
+    floatingWaiterBtn.style.display = "flex";
+  }
 });
 
 // --- Click Handling for Cart Buttons + Remove + Place Order ---
@@ -382,7 +385,7 @@ document.addEventListener("click", async function (e) {
     const qtyInput  = modal.querySelector("#qtyInput");
     const notesArea = modal.querySelector("#extraNotes");
 
-        const qtyStr = qtyInput ? qtyInput.value.trim() : "";
+    const qtyStr = qtyInput ? qtyInput.value.trim() : "";
 
     // Block empty or invalid quantity
     if (!qtyStr) {
@@ -423,7 +426,7 @@ document.addEventListener("click", async function (e) {
     return;
   }
 
-  // Call waiter (works for global floating button OR a button inside a modal)
+  // Call waiter (works for global floating button or, if you ever add one, a modal button)
   if (target && target.id === "call-waiter-btn") {
     let table = "";
     let notes = "";
@@ -521,7 +524,7 @@ document.addEventListener("click", async function (e) {
         // Clear cart after successful order
         cart = [];
         renderSelectedItems(modal);
-        // $(modal).modal('hide'); // optional
+        // $(modal).modal('hide'); // optional close
       } else {
         alert("⚠️ Error submitting order: " + (result.message || "Unknown error"));
       }

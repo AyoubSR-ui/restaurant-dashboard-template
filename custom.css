@@ -222,7 +222,7 @@ body::before {
     border-radius: 6px;
 }
 
-.call-waiter-floating {
+.call-waiter--btn {
   position: fixed;
   right: 20px;
   bottom: 20px;
