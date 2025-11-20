@@ -126,7 +126,7 @@ function renderSelectedItems(modal) {
             align-items:flex-start;
             margin-bottom:6px;
             padding:4px 6px;
-            background:transparent;       /* no white strip */
+            background:transparent;
             border-radius:4px;
           ">
         <div>
@@ -182,7 +182,8 @@ document.addEventListener("shown.bs.modal", function (e) {
     </select>
 
     <label style="font-weight:bold;">Quantity:</label><br>
-    <input id="qtyInput" type="number" min="1" value="1" style="
+    <input id="qtyInput" type="number" min="1"
+       placeholder="Quantity" inputmode="numeric" style="
         width:100%;
         padding:8px;
         margin-top:4px;
@@ -220,7 +221,6 @@ document.addEventListener("shown.bs.modal", function (e) {
       </div>
     </div>
 
-    <!-- Only these two buttons inside the modal -->
     <button id="add-to-order-btn"
             type="button"
             style="width:100%; background:#ff9800; color:#fff; border:none; padding:10px; border-radius:8px; margin-top:4px;">
@@ -238,30 +238,35 @@ document.addEventListener("shown.bs.modal", function (e) {
   }
 
   const { itemName, itemPrice } = getItemFromModal(modal);
-  const qtyInput   = modal.querySelector("#qtyInput");
-  const notesArea  = modal.querySelector("#extraNotes");
-  const addBtn     = modal.querySelector("#add-to-order-btn");
+  const qtyInput  = modal.querySelector("#qtyInput");
+  const notesArea = modal.querySelector("#extraNotes");
+  const addBtn    = modal.querySelector("#add-to-order-btn");
 
-  const existing = cart.find(i => i.name === itemName && i.price === itemPrice);
+  // Check if this product is already in the cart
+  const existingItem = cart.find(
+    i => i.name === itemName && i.price === itemPrice
+  );
 
-  if (existing) {
+  if (existingItem) {
     // Restore qty & note for this item
-    if (qtyInput)  qtyInput.value  = existing.qty;
-    if (notesArea) notesArea.value = existing.note || "";
+    if (qtyInput)  qtyInput.value  = String(existingItem.qty);
+    if (notesArea) notesArea.value = existingItem.note || "";
 
     // Freeze add button (already added)
     if (addBtn) {
-      addBtn.disabled     = true;
-      addBtn.textContent  = "Already added";
+      addBtn.disabled      = true;
+      addBtn.textContent   = "Already added";
       addBtn.style.opacity = "0.6";
       addBtn.style.cursor  = "not-allowed";
     }
   } else {
-    if (qtyInput)  qtyInput.value  = "1";
+    // No existing cart entry → leave quantity empty and notes empty
+    if (qtyInput)  qtyInput.value  = "";
     if (notesArea) notesArea.value = "";
+
     if (addBtn) {
-      addBtn.disabled     = false;
-      addBtn.textContent  = "Add to selected items";
+      addBtn.disabled      = false;
+      addBtn.textContent   = "Add to selected items";
       addBtn.style.opacity = "1";
       addBtn.style.cursor  = "pointer";
     }
@@ -318,8 +323,8 @@ document.addEventListener("click", async function (e) {
         // If removed item is current modal product -> re-enable Add button
         const { itemName, itemPrice } = getItemFromModal(modal);
         if (removed && removed.name === itemName && removed.price === itemPrice) {
-          const addBtn = modal.querySelector("#add-to-order-btn");
-          const qtyInput = modal.querySelector("#qtyInput");
+          const addBtn    = modal.querySelector("#add-to-order-btn");
+          const qtyInput  = modal.querySelector("#qtyInput");
           const notesArea = modal.querySelector("#extraNotes");
           if (addBtn) {
             addBtn.disabled = false;
@@ -327,7 +332,7 @@ document.addEventListener("click", async function (e) {
             addBtn.style.opacity = "1";
             addBtn.style.cursor = "pointer";
           }
-          if (qtyInput)  qtyInput.value  = "1";
+          if (qtyInput)  qtyInput.value  = "";   // reset to blank
           if (notesArea) notesArea.value = "";
         }
       }
@@ -377,12 +382,26 @@ document.addEventListener("click", async function (e) {
     return;
   }
 
-
-    // Call waiter for this table
+  // Call waiter (works for global floating button OR a button inside a modal)
   if (target && target.id === "call-waiter-btn") {
+    let table = "";
+    let notes = "";
+
     const modal = target.closest(".modal");
-    const table = modal.querySelector("#tableSelect")?.value || "";
-    const notes = modal.querySelector("#extraNotes")?.value || "";
+
+    if (modal && modal.querySelector("#tableSelect")) {
+      // Call from inside a modal: use that table & notes
+      table = modal.querySelector("#tableSelect")?.value || "";
+      notes = modal.querySelector("#extraNotes")?.value || "";
+    } else {
+      // Global floating button: ask the guest for table number
+      table = prompt("Please enter your table number:");
+      if (!table) {
+        alert("⚠️ Table number is required to call the waiter.");
+        return;
+      }
+      notes = "";
+    }
 
     if (!table) {
       alert("⚠️ Please select your table before calling the waiter.");
@@ -461,8 +480,7 @@ document.addEventListener("click", async function (e) {
         // Clear cart after successful order
         cart = [];
         renderSelectedItems(modal);
-        // Optionally close modal:
-        // $(modal).modal('hide');
+        // $(modal).modal('hide'); // optional
       } else {
         alert("⚠️ Error submitting order: " + (result.message || "Unknown error"));
       }
