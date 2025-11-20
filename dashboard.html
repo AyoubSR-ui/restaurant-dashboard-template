@@ -3,19 +3,101 @@
 <head>
   <meta charset="UTF-8">
   <title>☕ Live Orders Dashboard</title>
-
   <style>
-    body { font-family: Arial, sans-serif; background: #f7f4ef; text-align: center; margin: 0; }
-    h1 { background: #2e2b29; color: #fff; padding: 20px 0; }
-    table { width: 95%; margin: 20px auto; border-collapse: collapse; background: #fff; border-radius: 6px; }
-    th, td { padding: 10px; border: 1px solid #ddd; text-align: center; }
-    th { background: #2e2b29; color: white; }
-    tr:nth-child(even) { background: #f3f3f3; }
-    button { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; }
-    .ready { background: #ffc107; color: #000; }
-    .served { background: #28a745; color: #fff; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f4ef;
+      margin: 0;
+    }
 
-    /* Status / action pill */
+    /* Header bar with title + clear button */
+    .header-bar {
+      background: #2e2b29;
+      color: #fff;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-title {
+      margin: 0;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-title span.icon {
+      font-size: 26px;
+    }
+
+    .clear-btn {
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      background: #555;
+      color: #fff;
+      transition: background 0.2s ease, transform 0.1s ease, opacity 0.2s;
+    }
+
+    .clear-btn:hover:not(:disabled) {
+      background: #777;
+      transform: translateY(-1px);
+    }
+
+    .clear-btn.danger {
+      background: #dc3545;
+    }
+
+    .clear-btn:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    table {
+      width: 95%;
+      margin: 20px auto;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 6px;
+    }
+
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+
+    th {
+      background: #2e2b29;
+      color: white;
+    }
+
+    tr:nth-child(even) {
+      background: #f3f3f3;
+    }
+
+    button {
+      padding: 5px 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .ready {
+      background: #ffc107;
+      color: #000;
+    }
+
+    .served {
+      background: #28a745;
+      color: #fff;
+    }
+
+    /* Action status pill */
     .action-pill {
       display: inline-block;
       padding: 4px 10px;
@@ -23,22 +105,37 @@
       font-weight: bold;
       font-size: 14px;
     }
+
     .action-pending {
-      background: #dc3545; /* red alert */
-      color: #fff;
+      background:#dc3545;   /* red alert */
+      color:#fff;
     }
+
     .action-ready {
-      background: #ffc107;
-      color: #000;
+      background:#ffc107;
+      color:#000;
     }
+
     .action-served {
-      background: #28a745;
-      color: #fff;
+      background:#28a745;
+      color:#fff;
     }
   </style>
 </head>
 <body>
-  <h1>☕ Live Orders Dashboard</h1>
+
+  <!-- Header with title + clear button -->
+  <div class="header-bar">
+    <h1 class="header-title">
+      <span class="icon">☕</span>
+      <span>Live Orders Dashboard</span>
+    </h1>
+
+    <button id="clear-dashboard-btn" class="clear-btn">
+      Clear dashboard
+    </button>
+  </div>
+
   <table>
     <thead>
       <tr>
@@ -55,10 +152,12 @@
   </table>
 
   <script>
+    const API_BASE = "https://restaurant-dashboard-template.onrender.com";
+
     // Fetch all current orders
     async function fetchOrders() {
       try {
-        const res = await fetch("https://restaurant-dashboard-template.onrender.com/get_orders");
+        const res = await fetch(`${API_BASE}/get_orders`);
         const data = await res.json();
         console.log("🔎 Orders from API:", data);
 
@@ -68,33 +167,17 @@
         data.forEach((order, i) => {
           const row = document.createElement("tr");
 
-          // Build items cell and total price
-          let itemsCell = "";
-          let totalPrice = 0;
+          // Items & price (fallbacks for different payloads)
+          const itemsCell =
+            order.items ||
+            (order.item
+              ? `${order.qty ? order.qty + "× " : ""}${order.item}`
+              : "");
 
-          if (order.items && order.items.length) {
-            // Multi-item order
-            itemsCell = order.items
-              .map(it => `${it.qty}× ${it.name} (${it.price})`)
-              .join("<br>");
-
-            totalPrice = order.items.reduce((sum, it) => {
-              const numPrice = parseFloat(String(it.price).replace(/[^\d.]/g, "")) || 0;
-              const qty = it.qty || 1;
-              return sum + numPrice * qty;
-            }, 0);
-          } else {
-            // Legacy/single item order fallback
-            const qtyText =
-              typeof order.qty !== "undefined" && order.qty !== null
-                ? `${order.qty}× `
-                : "";
-
-            itemsCell = `${qtyText}${order.item || "Unknown Item"}`;
-            totalPrice = parseFloat(String(order.price).replace(/[^\d.]/g, "")) || 0;
-          }
-
-          const priceCell = `${totalPrice} QAR`;
+          const priceCell =
+            order.price ||
+            order.total_price ||
+            "";
 
           // Decide action pill color based on status
           let actionClass = "action-pending";
@@ -130,7 +213,7 @@
     // Update order status
     async function updateStatus(index, newStatus) {
       try {
-        const res = await fetch("https://restaurant-dashboard-template.onrender.com/update_status", {
+        const res = await fetch(`${API_BASE}/update_status`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -150,6 +233,61 @@
         console.error("⚠️ Error sending update:", err);
       }
     }
+
+    // -------------------------
+    // Clear dashboard logic
+    // -------------------------
+    const clearBtn = document.getElementById("clear-dashboard-btn");
+    let clearArmed = false;
+    let clearTimer = null;
+
+    function resetClearButton() {
+      clearArmed = false;
+      if (clearTimer) {
+        clearTimeout(clearTimer);
+        clearTimer = null;
+      }
+      clearBtn.textContent = "Clear dashboard";
+      clearBtn.classList.remove("danger");
+      clearBtn.disabled = false;
+    }
+
+    clearBtn.addEventListener("click", async () => {
+      // First click -> arm confirmation
+      if (!clearArmed) {
+        clearArmed = true;
+        clearBtn.textContent = "Click again to confirm";
+        clearBtn.classList.add("danger");
+
+        // Auto-reset after 5 seconds
+        clearTimer = setTimeout(resetClearButton, 5000);
+        return;
+      }
+
+      // Second click -> browser confirm
+      const ok = confirm("Are you sure you want to clean the whole dashboard orders?");
+      if (!ok) {
+        resetClearButton();
+        return;
+      }
+
+      clearBtn.disabled = true;
+
+      try {
+        const res = await fetch(`${API_BASE}/clear_orders`, {
+          method: "POST",
+        });
+
+        const data = await res.json().catch(() => ({}));
+        console.log("🧹 Clear response:", data);
+
+        await fetchOrders();
+      } catch (err) {
+        console.error("❌ Error clearing orders:", err);
+      } finally {
+        resetClearButton();
+      }
+    });
 
     // Auto-refresh every 3 seconds
     setInterval(fetchOrders, 3000);
