@@ -11,17 +11,18 @@ async function loadOrders() {
     const priceText = order.price || "0 QAR";
 
     row.innerHTML = `
-      <td>${order.table}</td>
-      <td>${itemText}</td>      <!-- e.g. '3× KINDER MILK SHAKE' -->
-      <td>${priceText}</td>     <!-- e.g. '75 QAR' -->
-      <td>${order.status}</td>  <!-- goes under "Action" column -->
-      <td>${order.time}</td>
-      <td>${order.notes || "-"}</td>
-      <td>
-        <button class="ready" onclick="updateStatus(${index}, 'Ready')">Ready</button>
-        <button class="served" onclick="updateStatus(${index}, 'Served')">Served</button>
-      </td>
-    `;
+  <td>${order.table}</td>
+  <td>${order.qty || 1}× ${order.item}</td>   <!-- HERE -->
+  <td>${order.price}</td>
+  <td>${order.status}</td>
+  <td>${order.time}</td>
+  <td>${order.notes || "-"}</td>
+  <td>
+    <button class="ready" onclick="updateStatus(${index}, 'Ready')">Ready</button>
+    <button class="served" onclick="updateStatus(${index}, 'Served')">Served</button>
+  </td>
+`;
+
 
     tbody.appendChild(row);
   });
