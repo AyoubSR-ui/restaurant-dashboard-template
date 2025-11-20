@@ -1,7 +1,4 @@
-// === MENU.JS FINAL PRODUCTION VERSION (WITH CART) ===
-// Original carousel + navigation logic
-// ✅ Adds "Selected items" cart to modal
-// ✅ Supports multiple products in one order (items[] sent to Flask)
+// === MENU.JS FINAL PRODUCTION VERSION (WITH CART & FROZEN ADD) ===
 
 // --- Toggle Category Content Visibility ---
 function toggleContentVisibility(str) {
@@ -110,7 +107,7 @@ function getItemFromModal(modal) {
   return { itemName, itemPrice };
 }
 
-// Render selected items inside current modal (now shows note if exists)
+// Render selected items inside current modal
 function renderSelectedItems(modal) {
   const list = modal.querySelector("#selected-items-list");
   if (!list) return;
@@ -133,7 +130,6 @@ function renderSelectedItems(modal) {
           ">
         <span style="font-weight:600; color:#3e2723;">
           ${item.qty}× ${item.name} (${item.price})
-          ${item.note ? `<br><small style="font-weight:400; color:#666;">Note: ${item.note}</small>` : ""}
         </span>
         <button type="button"
                 data-remove-index="${index}"
@@ -145,10 +141,12 @@ function renderSelectedItems(modal) {
     .join("");
 }
 
-// --- Modal Form Injection (unchanged top part, just make sure there is #extraNotes) ---
+// --- Modal Form Injection (Bootstrap shown event) ---
 document.addEventListener("shown.bs.modal", function (e) {
   const modal = e.target;
   if (!modal.id || !modal.id.includes("menu_modal")) return;
+
+  console.log("🟢 Menu modal opened via Bootstrap event");
 
   const modalBody = modal.querySelector(".modal-body");
   if (!modalBody || modalBody.querySelector("#order_controls")) return;
@@ -221,11 +219,44 @@ document.addEventListener("shown.bs.modal", function (e) {
       Place Order
     </button>
   </div>
-  `;
+`;
 
   modalBody.insertAdjacentHTML("beforeend", formHTML);
 
-  // Do NOT reset cart here anymore, otherwise you lose previous items
+  const { itemName, itemPrice } = getItemFromModal(modal);
+  const qtyInput = modal.querySelector("#qtyInput");
+  const addBtn = modal.querySelector("#add-to-order-btn");
+
+  // Check if this item already exists in cart
+  const existing = cart.find(i => i.name === itemName && i.price === itemPrice);
+
+  if (existing) {
+    if (qtyInput) qtyInput.value = existing.qty;
+    if (addBtn) {
+      addBtn.disabled = true;
+      addBtn.textContent = "Already added";
+      addBtn.style.opacity = "0.6";
+      addBtn.style.cursor = "not-allowed";
+    }
+  } else {
+    if (qtyInput) qtyInput.value = "1";
+  }
+
+  // When quantity changes, update existing item if present
+  if (qtyInput) {
+    qtyInput.addEventListener("input", function () {
+      let value = parseInt(this.value || "1", 10);
+      if (isNaN(value) || value < 1) value = 1;
+      this.value = value;
+
+      const current = cart.find(i => i.name === itemName && i.price === itemPrice);
+      if (current) {
+        current.qty = value;
+        renderSelectedItems(modal);
+      }
+    });
+  }
+
   renderSelectedItems(modal);
 });
 
@@ -238,44 +269,72 @@ document.addEventListener("click", async function (e) {
     const modal = target.closest(".modal");
     const index = parseInt(target.getAttribute("data-remove-index"), 10);
     if (!isNaN(index)) {
+      const removed = cart[index];
       cart.splice(index, 1);
       renderSelectedItems(modal);
+
+      // If removed item is the current modal product -> re-enable Add button
+      if (removed && modal) {
+        const { itemName, itemPrice } = getItemFromModal(modal);
+        if (removed.name === itemName && removed.price === itemPrice) {
+          const addBtn = modal.querySelector("#add-to-order-btn");
+          const qtyInput = modal.querySelector("#qtyInput");
+          if (addBtn) {
+            addBtn.disabled = false;
+            addBtn.textContent = "Add to selected items";
+            addBtn.style.opacity = "1";
+            addBtn.style.cursor = "pointer";
+          }
+          if (qtyInput) qtyInput.value = "1";
+        }
+      }
     }
     return;
   }
 
-  // Add current item to selected items (with its note)
+  // Add current item to selected items (only once)
   if (target && target.id === "add-to-order-btn") {
+    console.log("🟢 Add to selected items clicked!");
+
     const modal = target.closest(".modal");
     const { itemName, itemPrice } = getItemFromModal(modal);
 
-    const qtyInput   = modal.querySelector("#qtyInput");
-    const notesInput = modal.querySelector("#extraNotes");
-
+    const qtyInput = modal.querySelector("#qtyInput");
     let qty = parseInt(qtyInput?.value || "1", 10);
     if (isNaN(qty) || qty < 1) qty = 1;
 
-    const note = notesInput?.value.trim() || "";
-
-    cart.push({
-      name: itemName,
-      price: itemPrice,
-      qty: qty,
-      note: note
-    });
-
-    // Clear note + reset qty for next item
-    if (notesInput) notesInput.value = "";
-    if (qtyInput)   qtyInput.value   = "1";
+    let existing = cart.find(i => i.name === itemName && i.price === itemPrice);
+    if (existing) {
+      // Already in cart: just sync quantity
+      existing.qty = qty;
+    } else {
+      // First time added
+      cart.push({
+        name: itemName,
+        price: itemPrice,
+        qty: qty
+      });
+      existing = cart[cart.length - 1];
+    }
 
     renderSelectedItems(modal);
+
+    // Freeze button after first add
+    target.disabled = true;
+    target.textContent = "Already added";
+    target.style.opacity = "0.6";
+    target.style.cursor = "not-allowed";
+
     return;
   }
 
-  // Place order with all items in cart (each keeps its own note)
+  // Place order with all items in cart
   if (target && target.id === "place-order-btn") {
+    console.log("🟢 Place Order (multi-items) clicked!");
+
     const modal = target.closest(".modal");
     const table = modal.querySelector("#tableSelect")?.value || "";
+    const notes = modal.querySelector("#extraNotes")?.value || "";
 
     if (!table) {
       alert("⚠️ Please select a table before placing your order.");
@@ -289,8 +348,8 @@ document.addEventListener("click", async function (e) {
 
     const orderData = {
       table: table,
-      notes: "",      // (optional global note, we’re not using it now)
-      items: cart     // each item has {name, price, qty, note}
+      notes: notes,
+      items: cart   // multi-item payload for Flask
     };
 
     console.log("📦 Sending order data:", orderData);
@@ -307,8 +366,11 @@ document.addEventListener("click", async function (e) {
 
       if (result.status === "success") {
         alert("✅ Your order has been received! It will be ready soon.");
+        // Clear cart after successful order
         cart = [];
         renderSelectedItems(modal);
+        // Optionally close modal:
+        // $(modal).modal('hide');
       } else {
         alert("⚠️ Error submitting order: " + (result.message || "Unknown error"));
       }
