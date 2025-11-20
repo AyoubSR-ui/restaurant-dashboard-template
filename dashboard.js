@@ -6,31 +6,15 @@ async function loadOrders() {
   res.data.forEach((order, index) => {
     const row = document.createElement("tr");
 
-    // 👇 Items cell: show "qty × name"
-    let itemsText = "";
-    if (Array.isArray(order.items) && order.items.length) {
-      itemsText = order.items
-        .map((item) => {
-          const qty = item.qty || 1;
-          const name = item.name || "Unknown Item";
-          return `${qty}× ${name}`;
-        })
-        .join("<br>");
-    } else {
-      // fallback for very old orders
-      const fallbackName = order.item || "Unknown Item";
-      const fallbackQty = order.qty || 1;
-      itemsText = `${fallbackQty}× ${fallbackName}`;
-    }
-
-    // 👇 Price cell: total price computed in app.py
+    const qty = order.qty || 1;
+    const itemText = `${qty}× ${order.item || "Unknown Item"}`;
     const priceText = order.price || "0 QAR";
 
     row.innerHTML = `
       <td>${order.table}</td>
-      <td>${itemsText}</td>          <!-- e.g. "7× STRAWBERRY SMOOTHI" -->
-      <td>${priceText}</td>          <!-- e.g. "175 QAR" -->
-      <td>${order.status}</td>
+      <td>${itemText}</td>      <!-- e.g. '3× KINDER MILK SHAKE' -->
+      <td>${priceText}</td>     <!-- e.g. '75 QAR' -->
+      <td>${order.status}</td>  <!-- goes under "Action" column -->
       <td>${order.time}</td>
       <td>${order.notes || "-"}</td>
       <td>

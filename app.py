@@ -40,77 +40,81 @@ def serve_static(filename):
 # --- Route: Submit new order ---
 @app.route('/submit_order', methods=['POST'])
 def submit_order():
-    """Receive a new order from the customer page (supports multi-items cart)."""
+    """Receive a new order and split cart items into separate rows."""
     try:
         data = request.get_json(silent=True) or {}
-        print("📥 RAW ORDER DATA:", data)   # <-- Watch this in the terminal
+        print("📥 RAW ORDER DATA:", data)
 
-        # 1) Read items[] from payload (cart from menu.js)
         raw_items = data.get("items") or []
 
-        normalized_items = []
-        for it in raw_items:
-            if not isinstance(it, dict):
-                continue
-
-            # Be flexible with key names from JS
-            name = it.get("name") or it.get("item") or "Unknown Item"
-            price = it.get("price") or it.get("price_qr") or "0 QAR"
-            qty = it.get("qty") or it.get("quantity") or 1
-
-            try:
-                qty = int(qty)
-            except (TypeError, ValueError):
-                qty = 1
-
-            normalized_items.append({
-                "name": str(name),
-                "price": str(price),
-                "qty": qty
-            })
-
-        # 2) Fallback for old single-item requests (no items[])
-        if not normalized_items:
-            fallback_name = data.get("item", "Unknown Item")
-            fallback_price = data.get("price", "0 QAR")
-            fallback_qty = int(data.get("qty", 1) or 1)
-            normalized_items = [{
-                "name": str(fallback_name),
-                "price": str(fallback_price),
-                "qty": fallback_qty
-            }]
-
-        # 3) Compute total price, e.g. 2×(25 QAR) = 50 QAR
+        # Helper to parse "25 QAR" -> 25.0
         import re
 
         def parse_price(p):
             m = re.search(r'(\d+(\.\d+)?)', str(p))
             return float(m.group(1)) if m else 0.0
 
-        total_value = sum(parse_price(i["price"]) * i["qty"] for i in normalized_items)
-        display_price = f"{total_value:.0f} QAR"
+        table = data.get("table", "Unknown")
+        notes = data.get("notes", "")
 
-        # 4) Build final order object used by dashboard
-        order = {
-            "table": data.get('table', 'Unknown'),
-            "items": normalized_items,                 # full list of {name,price,qty}
+        # If we have a cart (items[])
+        if raw_items:
+            for it in raw_items:
+                if not isinstance(it, dict):
+                    continue
 
-            # keep these for compatibility with existing dashboard columns
-            "item": normalized_items[0]["name"],
-            "price": display_price,                    # total price
+                name = it.get("name") or it.get("item") or "Unknown Item"
+                price_str = it.get("price") or it.get("price_qr") or "0 QAR"
+                qty = it.get("qty") or it.get("quantity") or 1
+                try:
+                    qty = int(qty)
+                except (TypeError, ValueError):
+                    qty = 1
 
-            "notes": data.get('notes', ''),
-            "status": "Pending",
-            "time": (datetime.now(timezone.utc) + timedelta(hours=3)).strftime("%H:%M:%S")
-        }
+                unit_value = parse_price(price_str)
+                total_value = unit_value * qty
+                total_price_str = f"{total_value:.0f} QAR"
 
-        orders.append(order)
-        print("✅ New Order Stored:", order)           # <-- Should show correct name/price
+                order = {
+                    "table": table,
+                    "item": str(name),
+                    "qty": qty,
+                    "price": total_price_str,
+                    "notes": notes,
+                    "status": "Pending",
+                    "time": (datetime.now(timezone.utc) + timedelta(hours=3)).strftime("%H:%M:%S"),
+                }
+                orders.append(order)
+                print("✅ Stored order row:", order)
+
+        # Fallback for old single-item requests with no items[]
+        else:
+            name = data.get("item", "Unknown Item")
+            price_str = data.get("price", "0 QAR")
+            qty = int(data.get("qty", 1) or 1)
+
+            unit_value = parse_price(price_str)
+            total_value = unit_value * qty
+            total_price_str = f"{total_value:.0f} QAR"
+
+            order = {
+                "table": table,
+                "item": str(name),
+                "qty": qty,
+                "price": total_price_str,
+                "notes": notes,
+                "status": "Pending",
+                "time": (datetime.now(timezone.utc) + timedelta(hours=3)).strftime("%H:%M:%S"),
+            }
+            orders.append(order)
+            print("✅ Stored fallback order row:", order)
+
         return jsonify({"status": "success", "message": "Order received!"}), 200
 
     except Exception as e:
         print("❌ Error receiving order:", e)
         return jsonify({"status": "error", "message": str(e)}), 400
+
 
 
 
