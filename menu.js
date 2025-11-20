@@ -158,6 +158,23 @@ document.addEventListener("shown.bs.modal", function (e) {
 
   console.log("🟢 Menu modal opened via Bootstrap event");
 
+  // 🔴 NEW: hide floating Call Waiter while product modal is open
+  const floatingWaiter = document.getElementById("call-waiter-fab"); // <- use your id here
+  if (floatingWaiter) {
+    floatingWaiter.style.display = "none";
+  }
+
+  // 🔴 NEW: when any menu modal is closed, show the floating Call Waiter again
+document.addEventListener("hidden.bs.modal", function (e) {
+  const modal = e.target;
+  if (!modal.id || !modal.id.includes("menu_modal")) return;
+
+  const floatingWaiter = document.getElementById("call-waiter-fab"); // same id
+  if (floatingWaiter) {
+    floatingWaiter.style.display = "flex"; // or "block" depending on your CSS
+  }
+});
+
   const modalBody = modal.querySelector(".modal-body");
   if (!modalBody) return;
 
