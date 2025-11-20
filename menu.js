@@ -223,33 +223,32 @@ document.addEventListener("shown.bs.modal", function (e) {
 
   modalBody.insertAdjacentHTML("beforeend", formHTML);
 
+   // Get current product info
   const { itemName, itemPrice } = getItemFromModal(modal);
   const qtyInput = modal.querySelector("#qtyInput");
-  const addBtn = modal.querySelector("#add-to-order-btn");
+  const addBtn   = modal.querySelector("#add-to-order-btn");
 
-  // Check if this item already exists in cart
-  const existing = cart.find(i => i.name === itemName && i.price === itemPrice);
+  // Always start from 1 when opening the modal
+  if (qtyInput) qtyInput.value = "1";
 
-  if (existing) {
-    if (qtyInput) qtyInput.value = existing.qty;
-    if (addBtn) {
-      addBtn.disabled = true;
-      addBtn.textContent = "Already added";
-      addBtn.style.opacity = "0.6";
-      addBtn.style.cursor = "not-allowed";
-    }
-  } else {
-    if (qtyInput) qtyInput.value = "1";
+  // Make sure button looks active every time modal is opened
+  if (addBtn) {
+    addBtn.disabled = false;
+    addBtn.style.opacity = "1";
+    addBtn.textContent = "Add to selected items";
+    addBtn.style.cursor = "pointer";
   }
 
-  // When quantity changes, update existing item if present
+  // Live update quantity if the item is already in the cart
   if (qtyInput) {
     qtyInput.addEventListener("input", function () {
       let value = parseInt(this.value || "1", 10);
       if (isNaN(value) || value < 1) value = 1;
       this.value = value;
 
-      const current = cart.find(i => i.name === itemName && i.price === itemPrice);
+      const current = cart.find(
+        i => i.name === itemName && i.price === itemPrice
+      );
       if (current) {
         current.qty = value;
         renderSelectedItems(modal);
@@ -257,8 +256,9 @@ document.addEventListener("shown.bs.modal", function (e) {
     });
   }
 
+  // Render list with current cart
   renderSelectedItems(modal);
-});
+ 
 
 // --- Click Handling for Cart Buttons + Remove + Place Order ---
 document.addEventListener("click", async function (e) {
@@ -379,4 +379,5 @@ document.addEventListener("click", async function (e) {
       alert("Server not reachable. Make sure Flask / Render is online.");
     }
   }
+});
 });
