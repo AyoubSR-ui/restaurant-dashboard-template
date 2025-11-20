@@ -1,37 +1,50 @@
+// dashboard.js  — show qty × item and correct price/status
+
 async function loadOrders() {
-  const res = await axios.get("/get_orders");
-  const tbody = document.querySelector("tbody");
-  tbody.innerHTML = "";
+  try {
+    const res = await axios.get("/get_orders");
+    const tbody = document.querySelector("tbody");
+    tbody.innerHTML = "";
 
-  res.data.forEach((order, index) => {
-    const row = document.createElement("tr");
+    console.log("Dashboard orders:", res.data); // debug
 
-    const qty = order.qty || 1;
-    const itemText = `${qty}× ${order.item || "Unknown Item"}`;
-    const priceText = order.price || "0 QAR";
+    res.data.forEach((order, index) => {
+      const row = document.createElement("tr");
 
-    row.innerHTML = `
-  <td>${order.table}</td>
-  <td>${order.qty || 1}× ${order.item}</td>   <!-- HERE -->
-  <td>${order.price}</td>
-  <td>${order.status}</td>
-  <td>${order.time}</td>
-  <td>${order.notes || "-"}</td>
-  <td>
-    <button class="ready" onclick="updateStatus(${index}, 'Ready')">Ready</button>
-    <button class="served" onclick="updateStatus(${index}, 'Served')">Served</button>
-  </td>
-`;
+      // If Flask sent qty, use it; otherwise default to 1
+      const qtyPrefix = (typeof order.qty !== "undefined" && order.qty !== null)
+        ? `${order.qty}× `
+        : "";
 
+      row.innerHTML = `
+        <td>${order.table}</td>
+        <td>${qtyPrefix}${order.item}</td>
+        <td>${order.price}</td>
+        <td>${order.status}</td>
+        <td>${order.time}</td>
+        <td>${order.notes || "-"}</td>
+        <td>
+          <button class="ready" onclick="updateStatus(${index}, 'Ready')">Ready</button>
+          <button class="served" onclick="updateStatus(${index}, 'Served')">Served</button>
+        </td>
+      `;
 
-    tbody.appendChild(row);
-  });
+      tbody.appendChild(row);
+    });
+  } catch (err) {
+    console.error("❌ Error loading orders:", err);
+  }
 }
 
 async function updateStatus(index, status) {
-  await axios.post("/update_status", { index, status });
-  loadOrders();
+  try {
+    await axios.post("/update_status", { index, status });
+    loadOrders();
+  } catch (err) {
+    console.error("❌ Error updating status:", err);
+  }
 }
 
+// Auto-refresh every 3s
 setInterval(loadOrders, 3000);
 loadOrders();
