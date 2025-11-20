@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>☕ Live Orders Dashboard</title>
+
   <style>
     body { font-family: Arial, sans-serif; background: #f7f4ef; text-align: center; margin: 0; }
     h1 { background: #2e2b29; color: #fff; padding: 20px 0; }
@@ -13,6 +14,27 @@
     button { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; }
     .ready { background: #ffc107; color: #000; }
     .served { background: #28a745; color: #fff; }
+
+    /* Status / action pill */
+    .action-pill {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    .action-pending {
+      background: #dc3545; /* red alert */
+      color: #fff;
+    }
+    .action-ready {
+      background: #ffc107;
+      color: #000;
+    }
+    .action-served {
+      background: #28a745;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -46,17 +68,50 @@
         data.forEach((order, i) => {
           const row = document.createElement("tr");
 
-          // Build "qty × item" text (fallback if qty is missing)
-          const qtyText =
-            typeof order.qty !== "undefined" && order.qty !== null
-              ? `${order.qty}× `
-              : "";
+          // Build items cell and total price
+          let itemsCell = "";
+          let totalPrice = 0;
+
+          if (order.items && order.items.length) {
+            // Multi-item order
+            itemsCell = order.items
+              .map(it => `${it.qty}× ${it.name} (${it.price})`)
+              .join("<br>");
+
+            totalPrice = order.items.reduce((sum, it) => {
+              const numPrice = parseFloat(String(it.price).replace(/[^\d.]/g, "")) || 0;
+              const qty = it.qty || 1;
+              return sum + numPrice * qty;
+            }, 0);
+          } else {
+            // Legacy/single item order fallback
+            const qtyText =
+              typeof order.qty !== "undefined" && order.qty !== null
+                ? `${order.qty}× `
+                : "";
+
+            itemsCell = `${qtyText}${order.item || "Unknown Item"}`;
+            totalPrice = parseFloat(String(order.price).replace(/[^\d.]/g, "")) || 0;
+          }
+
+          const priceCell = `${totalPrice} QAR`;
+
+          // Decide action pill color based on status
+          let actionClass = "action-pending";
+          if (order.status === "Ready") actionClass = "action-ready";
+          if (order.status === "Served") actionClass = "action-served";
+
+          const actionHtml = `
+            <span class="action-pill ${actionClass}">
+              ${order.status}
+            </span>
+          `;
 
           row.innerHTML = `
             <td>${order.table}</td>
-            <td>${qtyText}${order.item}</td>
-            <td>${order.price}</td>
-            <td>${order.status}</td>
+            <td>${itemsCell}</td>
+            <td>${priceCell}</td>
+            <td>${actionHtml}</td>
             <td>${order.time}</td>
             <td>${order.notes || '-'}</td>
             <td>
@@ -64,6 +119,7 @@
               <button class="served" onclick="updateStatus(${i}, 'Served')">Served</button>
             </td>
           `;
+
           tbody.appendChild(row);
         });
       } catch (err) {
