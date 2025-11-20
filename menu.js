@@ -273,10 +273,22 @@ document.addEventListener("shown.bs.modal", function (e) {
   }
 
   // Attach qty listener once per element
-  if (qtyInput && !qtyInput.dataset.listenerAttached) {
+     if (qtyInput && !qtyInput.dataset.listenerAttached) {
     qtyInput.addEventListener("input", function () {
-      let value = parseInt(this.value || "1", 10);
-      if (isNaN(value) || value < 1) value = 1;
+      const val = this.value.trim();
+
+      // Allow the field to be empty while the user is editing
+      if (val === "") {
+        return;
+      }
+
+      let value = parseInt(val, 10);
+
+      // 0 or invalid → clamp to 1
+      if (isNaN(value) || value < 1) {
+        value = 1;
+      }
+
       this.value = value;
 
       const { itemName, itemPrice } = getItemFromModal(modal);
@@ -288,6 +300,7 @@ document.addEventListener("shown.bs.modal", function (e) {
     });
     qtyInput.dataset.listenerAttached = "1";
   }
+
 
   // Attach notes listener once per element
   if (notesArea && !notesArea.dataset.listenerAttached) {
@@ -352,8 +365,19 @@ document.addEventListener("click", async function (e) {
     const qtyInput  = modal.querySelector("#qtyInput");
     const notesArea = modal.querySelector("#extraNotes");
 
-    let qty = parseInt(qtyInput?.value || "1", 10);
-    if (isNaN(qty) || qty < 1) qty = 1;
+        const qtyStr = qtyInput ? qtyInput.value.trim() : "";
+
+    // Block empty or invalid quantity
+    if (!qtyStr) {
+      alert("⚠️ Please enter a quantity (1 or more).");
+      return;
+    }
+
+    let qty = parseInt(qtyStr, 10);
+    if (isNaN(qty) || qty < 1) {
+      alert("⚠️ Quantity must be 1 or more.");
+      return;
+    }
 
     const note = notesArea ? notesArea.value : "";
 
