@@ -164,82 +164,76 @@ document.addEventListener("shown.bs.modal", function (e) {
   // Inject controls once
   if (!modalBody.querySelector("#order_controls")) {
     const formHTML = `
-      <div id="order_controls" style="margin-top:20px; text-align:left;">
-        <hr style="margin:10px 0;">
+  <div id="order_controls" style="margin-top:20px; text-align:left;">
+    <hr style="margin:10px 0;">
 
-        <label style="font-weight:bold;">Select Table:</label><br>
-        <select id="tableSelect" style="
-            width:100%;
-            padding:8px;
-            margin-top:4px;
-            margin-bottom:12px;
-            border-radius:10px;
-            border:1px solid #d0b08a;
-            background:#f3dec0;
-          ">
-          <option value="" selected disabled>-- Select Table --</option>
-          ${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">Table ${i + 1}</option>`).join("")}
-        </select>
+    <label style="font-weight:bold;">Select Table:</label><br>
+    <select id="tableSelect" style="
+        width:100%;
+        padding:8px;
+        margin-top:4px;
+        margin-bottom:12px;
+        border-radius:10px;
+        border:1px solid #d0b08a;
+        background:#f3dec0;
+      ">
+      <option value="" selected disabled>-- Select Table --</option>
+      ${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">Table ${i + 1}</option>`).join("")}
+    </select>
 
-        <label style="font-weight:bold;">Quantity:</label><br>
-        <input id="qtyInput" type="number" min="1" value="1" style="
-            width:100%;
-            padding:8px;
-            margin-top:4px;
-            margin-bottom:15px;
-            border-radius:10px;
-            border:1px solid #d0b08a;
-            background:#f3dec0;
-          ">
+    <label style="font-weight:bold;">Quantity:</label><br>
+    <input id="qtyInput" type="number" min="1" value="1" style="
+        width:100%;
+        padding:8px;
+        margin-top:4px;
+        margin-bottom:15px;
+        border-radius:10px;
+        border:1px solid #d0b08a;
+        background:#f3dec0;
+      ">
 
-        <label style="font-weight:bold;">Notes (for this item):</label><br>
-        <textarea id="extraNotes" placeholder="e.g. Less sugar, extra ice..." style="
-            width:100%;
-            padding:8px;
-            margin-top:4px;
-            margin-bottom:15px;
-            border-radius:10px;
-            border:1px solid #d0b08a;
-            background:#f3dec0;
-            resize:vertical;
-          "></textarea>
+    <label style="font-weight:bold;">Notes (for this item):</label><br>
+    <textarea id="extraNotes" placeholder="e.g. Less sugar, extra ice..." style="
+        width:100%;
+        padding:8px;
+        margin-top:4px;
+        margin-bottom:15px;
+        border-radius:10px;
+        border:1px solid #d0b08a;
+        background:#f3dec0;
+        resize:vertical;
+      "></textarea>
 
-        <label style="display:block; font-weight:bold; margin-bottom:6px;">Selected items:</label>
+    <label style="display:block; font-weight:bold; margin-bottom:6px;">Selected items:</label>
 
-        <div id="selected-items-box" style="
-            text-align:left;
-            padding:10px;
-            background:#f3dec0;
-            border-radius:10px;
-            border:1px solid #d0b08a;
-            color:#3e2723;
-            margin-bottom:15px;
-          ">
-          <div id="selected-items-list">
-            <p style="margin:0; opacity:0.8;">No items selected yet.</p>
-          </div>
-        </div>
-
-        <button id="add-to-order-btn"
-        type="button"
-        style="width:100%; background:#ff9800; color:#fff; border:none; padding:10px; border-radius:8px; margin-top:4px;">
-              Add to selected items
-               </button>
-
-            <button id="call-waiter-btn"
-           type="button"
-        style="width:100%; background:#c62828; color:#fff; border:none; padding:10px; border-radius:8px; margin-top:8px;">
-        Call Waiter
-        </button>
-
-            <button id="place-order-btn"
-        type="button"
-          style="width:100%; background:#6a4b29; color:#fff; border:none; padding:10px; border-radius:8px; margin-top:8px;">
-             Place Order
-            </button>
-
+    <div id="selected-items-box" style="
+        text-align:left;
+        padding:10px;
+        background:#f3dec0;
+        border-radius:10px;
+        border:1px solid #d0b08a;
+        color:#3e2723;
+        margin-bottom:15px;
+      ">
+      <div id="selected-items-list">
+        <p style="margin:0; opacity:0.8;">No items selected yet.</p>
       </div>
-    `;
+    </div>
+
+    <!-- Only these two buttons inside the modal -->
+    <button id="add-to-order-btn"
+            type="button"
+            style="width:100%; background:#ff9800; color:#fff; border:none; padding:10px; border-radius:8px; margin-top:4px;">
+      Add to selected items
+    </button>
+    <button id="place-order-btn"
+            type="button"
+            style="width:100%; background:#6a4b29; color:#fff; border:none; padding:10px; border-radius:8px; margin-top:8px;">
+      Place Order
+    </button>
+  </div>
+`;
+
     modalBody.insertAdjacentHTML("beforeend", formHTML);
   }
 
